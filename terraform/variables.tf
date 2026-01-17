@@ -53,3 +53,11 @@ variable "availability_zone" {
   type        = string
   default     = "eu-west-3a"
 }
+
+# Variables Sécurité (Security Groups)
+
+variable "allowed_ingress_cidr" {
+  description = "CIDR autorisé pour l'accès HTTP/HTTPS (0.0.0.0/0 pour public)"
+  type        = string
+  default     = "0.0.0.0/0"
+}
