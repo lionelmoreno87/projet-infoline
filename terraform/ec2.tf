@@ -38,3 +38,13 @@ resource "aws_spot_instance_request" "k3s" {
       Name = "${var.project_name}-k3s-root"
     }
   }
+  
+  # Elastic IP
+
+resource "aws_eip" "k3s" {
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.project_name}-k3s-eip"
+  }
+}
