@@ -33,3 +33,23 @@ variable "root_volume_size" {
   type        = number
   default     = 30
 }
+
+# Variables Réseau (VPC)
+
+variable "vpc_cidr" {
+  description = "CIDR block pour le VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "public_subnet_cidr" {
+  description = "CIDR block pour le subnet public"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "availability_zone" {
+  description = "Zone de disponibilité AWS"
+  type        = string
+  default     = "eu-west-3a"
+}
