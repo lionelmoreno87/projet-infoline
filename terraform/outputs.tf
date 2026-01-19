@@ -13,27 +13,17 @@ output "public_subnet_id" {
 
 # Informations EC2
 
-output "ec2_spot_request_id" {
-  description = "ID de la requête Spot"
-  value       = aws_spot_instance_request.ec2.id
-}
-
 output "ec2_instance_id" {
   description = "ID de l'instance EC2"
-  value       = aws_spot_instance_request.ec2.spot_instance_id
+  value       = aws_instance.ec2.id
 }
 
 output "ec2_public_ip" {
-  description = "IP publique (Elastic IP) de l'instance ec2"
+  description = "IP publique de l'instance EC2"
   value       = aws_eip.ec2.public_ip
 }
 
-# Commandes de connexion
-
 output "ssm_connection_command" {
   description = "Commande pour se connecter via SSM"
-  value = try(
-    "aws ssm start-session --target ${aws_spot_instance_request.ec2.spot_instance_id} --region ${var.aws_region}",
-    null
-  )
+  value       = "aws ssm start-session --target ${aws_instance.ec2.id} --region ${var.aws_region}"
 }
