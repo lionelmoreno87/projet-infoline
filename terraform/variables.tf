@@ -61,3 +61,15 @@ variable "allowed_ingress_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+variable "enable_k3s_api_access" {
+  description = "Activer l'accès API kubectl"
+  type        = bool
+  default     = false
+}
+
+variable "allowed_k3s_api_cidr" {
+  description = "CIDR autorisé pour l'accès API EC2"
+  type        = string
+  default     = "0.0.0.0/0"
+}

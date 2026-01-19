@@ -17,24 +17,24 @@ data "aws_ami" "ubuntu" {
 
 # Instance EC2 - K3s 
 
-resource "aws_instance" "K3s" {
+resource "aws_instance" "ec2" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.k3s.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_k3s.name
+  vpc_security_group_ids = [aws_security_group.ec2.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
   tags = {
-    Name = "${var.project_name}-k3s-root"
+    Name = "${var.project_name}-ec2-root"
   }
 }
 
 # Elastic IP
 
-resource "aws_eip" "k3s" {
+resource "aws_eip" "ec2" {
   domain = "vpc"
 
   tags = {
-    Name = "${var.project_name}-k3s-eip"
+    Name = "${var.project_name}-ec2-eip"
   }
 }
