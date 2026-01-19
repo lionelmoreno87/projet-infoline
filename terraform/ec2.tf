@@ -23,13 +23,13 @@ resource "aws_spot_instance_request" "ec2" {
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
-}
 
   wait_for_fulfillment = true  
 
   tags = {
-    Name = "${var.project_name}-k3s"
+    Name = "${var.project_name}-ec2"
   }
+}  
 
 # Elastic IP
 
