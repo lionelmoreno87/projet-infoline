@@ -17,34 +17,20 @@ data "aws_ami" "ubuntu" {
 
 # Instance EC2 - K3s (Spot Instance)
 
-resource "aws_spot_instance_request" "k3s" {
+resource "aws_spot_instance_request" "ec2" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.k3s.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_k3s.name
+  vpc_security_group_ids = [aws_security_group.ec2.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2.name
+}
 
-  # Configuration Spot
-  spot_type            = "persistent"
-  wait_for_fulfillment = true
+# Elastic IP
 
-  # Stockage racine (gp3 pour meilleures performances)
-  root_block_device {
-    volume_size           = var.root_volume_size
-    volume_type           = "gp3"
-    delete_on_termination = true
-
-    tags = {
-      Name = "${var.project_name}-k3s-root"
-    }
-  }
-  
-  # Elastic IP
-
-resource "aws_eip" "k3s" {
+resource "aws_eip" "ec2" {
   domain = "vpc"
 
   tags = {
-    Name = "${var.project_name}-k3s-eip"
+    Name = "${var.project_name}-ec2-eip"
   }
 }
