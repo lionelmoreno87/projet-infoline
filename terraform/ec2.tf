@@ -25,6 +25,12 @@ resource "aws_spot_instance_request" "ec2" {
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
 }
 
+  wait_for_fulfillment = true  
+
+  tags = {
+    Name = "${var.project_name}-k3s"
+  }
+
 # Elastic IP
 
 resource "aws_eip" "ec2" {

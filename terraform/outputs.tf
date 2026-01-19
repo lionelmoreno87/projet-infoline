@@ -32,5 +32,8 @@ output "ec2_public_ip" {
 
 output "ssm_connection_command" {
   description = "Commande pour se connecter via SSM"
-  value       = "aws ssm start-session --target ${aws_spot_instance_request.ec2.spot_instance_id} --region ${var.aws_region}"
+  value = try(
+    "aws ssm start-session --target ${aws_spot_instance_request.ec2.spot_instance_id} --region ${var.aws_region}",
+    null
+  )
 }
