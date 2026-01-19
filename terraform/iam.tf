@@ -1,5 +1,5 @@
 resource "aws_iam_role" "ec2" {
-  name = "${var.project_name}-ec2-role"
+  name = "${var.project_name}-k3s-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -13,15 +13,15 @@ resource "aws_iam_role" "ec2" {
   })
 
   tags = {
-    Name = "${var.project_name}-ec2-role"
+    Name = "${var.project_name}-k3s-role"
   }
 }
 
 resource "aws_iam_role_policy_attachment" "ssm" {
-  role       = aws_iam_role.ec2.name
+  role       = aws_iam_role.k3s.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
-resource "aws_iam_instance_profile" "ec2" {
-  name = "${var.project_name}-ec2-profile"
-  role = aws_iam_role.ec2.name
+resource "aws_iam_instance_profile" "k3s" {
+  name = "${var.project_name}-k3s-profile"
+  role = aws_iam_role.k3s.name
 }

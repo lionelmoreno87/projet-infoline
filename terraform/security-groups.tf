@@ -54,16 +54,16 @@ resource "aws_vpc_security_group_egress_rule" "all_outbound" {
 }
 
 # API Kubernetes
-resource "aws_vpc_security_group_ingress_rule" "k3s_api" {
-  count             = var.enable_k3s_api_access ? 1 : 0
+resource "aws_vpc_security_group_ingress_rule" "ec2_api" {
+  count             = var.enable_ec2_api_access ? 1 : 0
   security_group_id = aws_security_group.ec2.id
   description       = "Kubernetes API (kubectl distant)"
   from_port         = 6443
   to_port           = 6443
   ip_protocol       = "tcp"
-  cidr_ipv4         = var.allowed_k3s_api_cidr
+  cidr_ipv4         = var.allowed_ec2_api_cidr
 
   tags = {
-    Name = "${var.project_name}-k3s-api"
+    Name = "${var.project_name}-ec2-api"
   }
 }
