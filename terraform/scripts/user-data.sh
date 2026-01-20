@@ -6,10 +6,8 @@
 set -e
 
 # Variables (injectées par Terraform templatefile)
-
 PROJECT_NAME="${project_name}"
 AWS_REGION="${aws_region}"
-S3_BUCKET="${s3_bucket}"
 DOMAIN_NAME="${domain_name}"
 
 # Logs d'installation
@@ -79,10 +77,8 @@ helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx \
     --namespace ingress-nginx \
     --create-namespace \
-    --set controller.service.type=NodePort \
-    --set controller.service.nodePorts.http=80 \
-    --set controller.service.nodePorts.https=443 \
-    --set controller.hostPort.enabled=true
+    --set controller.hostPort.enabled=true \
+    --set controller.service.type=ClusterIP
 
 # Attendre NGINX Ingress
 echo ">>> Attente du démarrage de NGINX Ingress..."

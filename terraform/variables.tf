@@ -73,3 +73,9 @@ variable "allowed_k3s_api_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+variable "domain_name" {
+  description = "Nom de domaine pour l'application"
+  type        = string
+  default     = ""
+}
