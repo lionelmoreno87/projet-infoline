@@ -27,3 +27,17 @@ output "ssm_connection_command" {
   description = "Commande pour se connecter via SSM"
   value       = "aws ssm start-session --target ${aws_instance.ec2.id} --region ${var.aws_region}"
 }
+
+# API Gateway
+
+output "api_gateway_url" {
+  description = "URL de l'API Gateway"
+  value       = aws_apigatewayv2_api.main.api_endpoint
+}
+
+output "lambda_function_name" {
+  description = "Nom de la fonction Lambda"
+  value       = aws_lambda_function.login.function_name
+}
+
+
