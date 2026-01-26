@@ -84,11 +84,48 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
 echo ">>> Attente du démarrage de NGINX Ingress..."
 sleep 30
 
+# Installation de cert-manager
+
+echo ">>> Installation de cert-manager..."
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+    --namespace cert-manager \
+    --create-namespace \
+    --set installCRDs=true
+
+# Attendre que cert-manager soit prêt
+echo ">>> Attente du démarrage de cert-manager..."
+sleep 30
+kubectl wait --for=condition=Ready pods --all -n cert-manager --timeout=120s
+
+# Configuration ClusterIssuer Let's Encrypt
+
+if [ -n "$DOMAIN_NAME" ]; then
+echo ">>> Configuration ClusterIssuer Let's Encrypt pour $DOMAIN_NAME..."
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@${DOMAIN_NAME}
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+
 # Fin de l'installation
 
 echo ">>> Installation terminée pour $PROJECT_NAME - $(date)"
 echo ">>> Composants installés :"
 echo "    - K3s (Kubernetes)"
 echo "    - NGINX Ingress Controller"
+echo "    - cert-manager + Let's Encrypt"
 echo ">>> Connexion via SSM :"
 echo "    aws ssm start-session --target <INSTANCE_ID> --region $AWS_REGION"
