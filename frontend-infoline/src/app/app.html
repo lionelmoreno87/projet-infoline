@@ -1,0 +1,31 @@
+<div class="container">
+  <header>
+    <h1>InfoLine</h1>
+  </header>
+  
+  <main>
+    <div class="card">
+      <h2>{{ title() }}</h2>
+      <p>Bienvenue sur la plateforme InfoLine !</p>
+      <p class="status" [class.online]="isOnline()">
+        Status: {{ isOnline() ? 'En ligne' : 'Hors ligne' }}
+      </p>
+    </div>
+    
+    <div class="card">
+      <h3>Informations techniques</h3>
+      <ul>
+        <li><strong>Application:</strong> {{ appInfo.name }}</li>
+        <li><strong>Version:</strong> {{ appInfo.version }}</li>
+        <li><strong>Framework:</strong> {{ appInfo.framework }}</li>
+        <li><strong>Date:</strong> {{ currentDate | date:'dd/MM/yyyy HH:mm' }}</li>
+      </ul>
+    </div>
+  </main>
+  
+  <footer>
+    <p>&copy; 2025 InfoLine - ECF Administrateur Système DevOps</p>
+  </footer>
+</div>
+
+<router-outlet />
