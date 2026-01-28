@@ -79,3 +79,11 @@ variable "domain_name" {
   type        = string
   default     = ""
 }
+
+# Variables S3 (Backups)
+
+variable "backup_retention_days" {
+  description = "Nombre de jours de rétention des backups"
+  type        = number
+  default     = 30
+}
