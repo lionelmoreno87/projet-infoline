@@ -122,6 +122,34 @@ spec:
 EOF
 fi
 
+# Installation AWS EBS CSI Driver
+
+echo ">>> Installation AWS EBS CSI Driver..."
+helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+helm repo update
+
+helm install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver \
+    --namespace kube-system \
+    --set controller.serviceAccount.create=true \
+    --set node.serviceAccount.create=true
+
+# Créer la StorageClass gp3 par défaut
+echo ">>> Création de la StorageClass ebs-gp3..."
+cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  fsType: ext4
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+EOF
+
 # Fin de l'installation
 
 echo ">>> Installation terminée pour $PROJECT_NAME - $(date)"
@@ -129,5 +157,6 @@ echo ">>> Composants installés :"
 echo "    - K3s (Kubernetes)"
 echo "    - NGINX Ingress Controller"
 echo "    - cert-manager + Let's Encrypt"
+echo "    - AWS EBS CSI Driver"
 echo ">>> Connexion via SSM :"
 echo "    aws ssm start-session --target <INSTANCE_ID> --region $AWS_REGION"
