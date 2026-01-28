@@ -100,7 +100,7 @@ echo ">>> Attente du démarrage de cert-manager..."
 sleep 30
 kubectl wait --for=condition=Ready pods --all -n cert-manager --timeout=120s
 
-# Configuration ClusterIssuer Let's Encrypt
+# Configuration Let's Encrypt
 
 if [ -n "$DOMAIN_NAME" ]; then
 echo ">>> Configuration ClusterIssuer Let's Encrypt pour $DOMAIN_NAME..."
@@ -112,13 +112,15 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: admin@${DOMAIN_NAME}
+    email: admin@$DOMAIN_NAME
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
     - http01:
         ingress:
           class: nginx
+EOF
+fi
 
 # Fin de l'installation
 

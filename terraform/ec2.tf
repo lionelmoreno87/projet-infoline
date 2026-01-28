@@ -29,11 +29,11 @@ resource "aws_instance" "ec2" {
     volume_type = "gp3"
   }
 
-  user_data = templatefile("${path.module}/scripts/user-data.sh", {
-    project_name = var.project_name
-    aws_region   = var.aws_region
-    domain_name  = var.domain_name
-  })
+user_data = templatefile("${path.module}/scripts/user-data.sh", {
+  project_name = var.project_name
+  aws_region   = var.aws_region
+  domain_name  = var.domain_name    
+})
 
   tags = {
     Name = "${var.project_name}-k3s"
