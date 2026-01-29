@@ -40,4 +40,15 @@ output "lambda_function_name" {
   value       = aws_lambda_function.login.function_name
 }
 
+# Informations S3
+
+output "s3_bucket_name" {
+  description = "Nom du bucket S3 pour les backups"
+  value       = aws_s3_bucket.backups.id
+}
+
+output "s3_bucket_arn" {
+  description = "ARN du bucket S3"
+  value       = aws_s3_bucket.backups.arn
+}
 

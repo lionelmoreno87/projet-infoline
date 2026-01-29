@@ -22,6 +22,8 @@ allowed_ingress_cidr = "0.0.0.0/0"
 instance_type    = "t3.medium"
 root_volume_size = 30
 
-# URLs de l'application
+# S3 Backups
+
+backup_retention_days = 30
 
 
