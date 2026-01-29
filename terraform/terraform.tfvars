@@ -26,4 +26,9 @@ root_volume_size = 30
 
 backup_retention_days = 30
 
+# Accès K3s API pour CI/CD
+
+enable_k3s_api_access = true
+allowed_k3s_api_cidr  = "0.0.0.0/0"
+
 
