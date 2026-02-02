@@ -1,0 +1,104 @@
+name: Deploy Monitoring Stack
+
+on:
+  # Déclenchement manuel
+  workflow_dispatch:
+  
+  # Ou lors de changements dans k8s/monitoring/
+  push:
+    branches: [main]
+    paths:
+      - 'k8s/monitoring/**'
+
+env:
+  KUBECONFIG_PATH: /tmp/kubeconfig
+
+jobs:
+  deploy-monitoring:
+    name: Deploy ELK Stack
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.29.0'
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $KUBECONFIG_PATH
+          chmod 600 $KUBECONFIG_PATH
+
+      - name: Verify cluster connection
+        run: |
+          kubectl --kubeconfig=$KUBECONFIG_PATH cluster-info
+          kubectl --kubeconfig=$KUBECONFIG_PATH get nodes
+
+      - name: Deploy Namespace
+        run: |
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/namespace.yaml
+
+      - name: Deploy Elasticsearch
+        run: |
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/elasticsearch-statefulset.yaml
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/elasticsearch-service.yaml
+
+      - name: Wait for Elasticsearch
+        run: |
+          echo "Waiting for Elasticsearch to be ready..."
+          kubectl --kubeconfig=$KUBECONFIG_PATH wait \
+            --namespace monitoring \
+            --for=condition=ready pod \
+            --selector=app=elasticsearch \
+            --timeout=300s
+
+      - name: Deploy Kibana
+        run: |
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/kibana-deployment.yaml
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/kibana-service.yaml
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/kibana-ingress.yaml
+
+      - name: Wait for Kibana
+        run: |
+          echo "Waiting for Kibana to be ready..."
+          kubectl --kubeconfig=$KUBECONFIG_PATH wait \
+            --namespace monitoring \
+            --for=condition=ready pod \
+            --selector=app=kibana \
+            --timeout=300s
+
+      - name: Deploy Filebeat
+        run: |
+          kubectl --kubeconfig=$KUBECONFIG_PATH apply -f k8s/monitoring/filebeat.yaml
+
+      - name: Wait for Filebeat
+        run: |
+          echo "Waiting for Filebeat to be ready..."
+          kubectl --kubeconfig=$KUBECONFIG_PATH wait \
+            --namespace monitoring \
+            --for=condition=ready pod \
+            --selector=app=filebeat \
+            --timeout=120s
+
+      - name: Verify deployment
+        run: |
+          echo "=== Pods in monitoring namespace ==="
+          kubectl --kubeconfig=$KUBECONFIG_PATH get pods -n monitoring
+          
+          echo ""
+          echo "=== Services in monitoring namespace ==="
+          kubectl --kubeconfig=$KUBECONFIG_PATH get svc -n monitoring
+          
+          echo ""
+          echo "=== Ingress in monitoring namespace ==="
+          kubectl --kubeconfig=$KUBECONFIG_PATH get ingress -n monitoring
+
+      - name: Display Kibana URL
+        run: |
+          KIBANA_HOST=$(kubectl --kubeconfig=$KUBECONFIG_PATH get ingress -n monitoring kibana-ingress -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo "Not configured")
+          echo "========================================"
+          echo "Kibana URL: http://$KIBANA_HOST"
+          echo "========================================"
