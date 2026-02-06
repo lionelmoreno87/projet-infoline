@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ce script s'exécute au premier démarrage de l'instance
-# Installe : K3s, Helm, NGINX Ingress
+# Installe : K3s, Helm, NGINX Ingress, cert-manager, ELK Stack
 
 set -e
 
@@ -97,7 +97,7 @@ KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm repo update
 KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm install cert-manager jetstack/cert-manager \
     --namespace cert-manager \
     --create-namespace \
-    --set installCRDs=true
+    --set crds.enabled=true
 
 # Attendre que cert-manager soit prêt
 echo ">>> Attente du démarrage de cert-manager..."
@@ -151,6 +151,290 @@ volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 EOF
 
+# ============================================
+# Installation ELK Stack (Monitoring)
+# ============================================
+
+echo ">>> Installation de la stack ELK..."
+
+# Créer le namespace monitoring
+kubectl create namespace monitoring
+
+# Déployer Elasticsearch
+echo ">>> Déploiement d'Elasticsearch..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-data
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.17.18
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: ES_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+            - name: xpack.security.enabled
+              value: "false"
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: elasticsearch-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: monitoring
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - port: 9200
+      targetPort: 9200
+      name: http
+    - port: 9300
+      targetPort: 9300
+      name: transport
+  clusterIP: None
+EOF
+
+# Attendre qu'Elasticsearch soit prêt
+echo ">>> Attente du démarrage d'Elasticsearch..."
+kubectl wait --namespace monitoring \
+    --for=condition=ready pod \
+    --selector=app=elasticsearch \
+    --timeout=300s
+
+# Déployer Kibana
+echo ">>> Déploiement de Kibana..."
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:7.17.18
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch:9200"
+          ports:
+            - containerPort: 5601
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "300m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: monitoring
+spec:
+  selector:
+    app: kibana
+  ports:
+    - port: 5601
+      targetPort: 5601
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kibana
+  namespace: monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: kibana.$PUBLIC_IP.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kibana
+                port:
+                  number: 5601
+EOF
+
+# Attendre que Kibana soit prêt
+echo ">>> Attente du démarrage de Kibana..."
+kubectl wait --namespace monitoring \
+    --for=condition=ready pod \
+    --selector=app=kibana \
+    --timeout=300s
+
+# Déployer Filebeat
+echo ">>> Déploiement de Filebeat..."
+cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: monitoring
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: monitoring
+data:
+  filebeat.yml: |
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          node: $${NODE_NAME}
+          hints.enabled: true
+          hints.default_config:
+            type: container
+            paths:
+              - /var/log/containers/*$${data.kubernetes.container.id}.log
+    output.elasticsearch:
+      hosts: ["elasticsearch:9200"]
+    setup.kibana:
+      host: "kibana:5601"
+    logging.level: info
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat
+    spec:
+      serviceAccountName: filebeat
+      containers:
+        - name: filebeat
+          image: docker.elastic.co/beats/filebeat:7.17.18
+          args: ["-c", "/etc/filebeat.yml", "-e"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            runAsUser: 0
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/filebeat.yml
+              subPath: filebeat.yml
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: filebeat-config
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+EOF
+
+echo ">>> Stack ELK déployée avec succès !"
+echo ">>> Kibana accessible sur : http://kibana.$PUBLIC_IP.nip.io"
+
 # Fin de l'installation
 echo ">>> Installation terminée pour $PROJECT_NAME - $(date)"
 echo ">>> IP publique: $PUBLIC_IP"
@@ -159,5 +443,9 @@ echo "    - K3s (Kubernetes) avec TLS-SAN $PUBLIC_IP"
 echo "    - NGINX Ingress Controller"
 echo "    - cert-manager + Let's Encrypt"
 echo "    - AWS EBS CSI Driver"
+echo "    - Elasticsearch 7.17.18"
+echo "    - Kibana 7.17.18"
+echo "    - Filebeat 7.17.18"
+echo ">>> Accès Kibana : http://kibana.$PUBLIC_IP.nip.io"
 echo ">>> Connexion via SSM :"
 echo "    aws ssm start-session --target <INSTANCE_ID> --region $AWS_REGION"
